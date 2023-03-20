@@ -1,69 +1,162 @@
-function [label_new, iter_GMM, para_miu, para_sigma, NegativeLogLikelihood, fitness]=GMM(X, K)
-% Input:
-% K: number of cluster
-% X: dataset, N*D
-% label_old: initializing label. N*1
-% Output:
-% label_new: results of cluster. N*1
-% iter_GMM: iterations
-% Written by kailugaji. (wangrongrong1996@126.com)
-format long 
-%% initializing parameters
-esp=1e-6;  % stopping criterion for iteration
-max_iter=1000;    % maximum number of iterations 
-beta=1e-4;  % a regularization coefficient of covariance matrix
-fitness=zeros(max_iter,1);
-[X_num, X_dim]=size(X);
-para_sigma=zeros(X_dim, X_dim, K); % the covariance matrix
-para_sigma_inv=zeros(X_dim, X_dim, K); % sigma^(-1)
-para_miu=zeros(K, X_dim); % the mean
-para_pi=zeros(1, K); % the mixing proportion
-log_N_pdf=zeros(X_num, K);  % log pdf
-%% initializing the mixing proportion, the mean and the covariance matrix
-for k=1:K
-    X_k=X(label_old==k, :); 
-    para_pi(k)=size(X_k, 1)/X_num;  
-    para_miu(k, :)=mean(X_k);  
-    sample_cov=cov(X_k)+beta*eye(X_dim);
-    para_sigma_inv(:, :, k)=inv(sample_cov);  %sigma^(-1)
+function [mu, Sigma, w] = GMM(X, K, max_iters, tol)
+
+% X: NxD matrix of input data
+% K: number of mixture components
+% max_iters: maximum number of iterations to run the algorithm
+% tol: tolerance level for convergence
+
+[N, D] = size(X);
+
+% Random initialization of the parameters
+mu = randn(K, D);
+Sigma = repmat(eye(D), [1, 1, K]);
+w = ones(K, 1) / K;
+
+% Initialize the log-likelihood
+prev_ll = -Inf;
+
+for iter = 1:max_iters
+    
+    % E-step: compute responsibilities
+    r = zeros(N, K);
+    for k = 1:K
+        r(:, k) = w(k) * mvnpdf(X, mu(k, :), squeeze(Sigma(:, :, k)));
+    end
+    r = r ./ sum(r, 2);
+    
+    % M-step: update parameters
+    Nk = sum(r, 1);
+    for k = 1:K
+        mu(k, :) = sum(repmat(r(:, k), 1, D) .* X, 1) / Nk(k);
+        Sigma(:, :, k) = ((X - mu(k, :))' * (repmat(r(:, k), 1, D) .* (X - mu(k, :)))) / Nk(k);
+        w(k) = Nk(k) / N;
+    end
+    
+    % Compute the log-likelihood and check for convergence
+    ll = sum(log(sum(bsxfun(@times, r, w'), 2)));
+    if ll - prev_ll < tol
+        break;
+    end
+    prev_ll = ll;
 end
-%% Expectation maximization (EM) algorithm
-for t=1:max_iter
-    %% E-step
-    for k=1:K
-        % pdf of each cluster 
-        X_miu=X-repmat(para_miu(k,:), X_num, 1);  % X-miu. X_num*X_dim
-        exp_up=sum((X_miu*para_sigma_inv(:, :, k)).*X_miu, 2);  % (X-miu)'*sigma^(-1)*(X-miu)
-        log_N_pdf(:,k)=log(para_pi(k))-0.5*X_dim*log(2*pi)+0.5*log(abs(det(para_sigma_inv(:, :, k))))-0.5*exp_up; % N*1
+
+end
+
+%%
+function [mu, sigma, w, loglikelihood] = gaussian_mixture_model(data, num_components, max_iter)
+% Gaussian mixture model algorithm
+%
+% data: NxD data matrix (N data points, D dimensions)
+% num_components: number of Gaussian components to fit
+% max_iter: maximum number of iterations
+%
+% mu: KxD matrix of means (K components, D dimensions)
+% sigma: DxDxK matrix of covariance matrices (K components)
+% w: Kx1 vector of component weights (K components)
+% loglikelihood: vector of log-likelihoods for each iteration
+
+% Initialize the model parameters
+[N, D] = size(data);
+mu = randn(num_components, D);
+sigma = repmat(eye(D), [1,1,num_components]);
+w = ones(num_components,1)/num_components;
+
+% Run the EM algorithm
+loglikelihood = zeros(max_iter,1);
+for iter = 1:max_iter
+    % E-step
+    for k = 1:num_components
+        pdf(:,k) = mvnpdf(data, mu(k,:), squeeze(sigma(:,:,k)));
     end
-    T = logsumexp(log_N_pdf,2);
-    responsivity = exp(bsxfun(@minus,log_N_pdf,T)); % posterior probability
-    responsivity(isnan(responsivity)==1) = 1;
-    %% M-step
-    R_k=sum(responsivity, 1);  % 1*K
-    % update miu
-    para_miu=(responsivity'*X)./repmat(R_k', 1, X_dim);
-    % update sigma
-    for k=1:K
-        X_miu=X-repmat(para_miu(k, :), X_num, 1); % N*D
-        temp_X_miu_r=X_miu.*repmat(sqrt(responsivity(:, k)), 1, X_dim); % N*D
-        para_sigma(:, :, k)=(temp_X_miu_r'*temp_X_miu_r)/R_k(k);
-        para_sigma(:, :, k)=para_sigma(:, :, k)+beta*eye(X_dim);
-        para_sigma_inv(:, :, k)=inv(para_sigma(:, :, k));  % sigma^(-1)
-    end
-    % update pi
-    para_pi=R_k/sum(R_k);
-    %% Negative logLikelihood function
-%     fitness(t)=-sum(sum(log_N_pdf));
-    fitness(t)=sum(sum(responsivity.*log_N_pdf));
-    %% stopping criterion for iteration
-    if t>1 
-        if abs(fitness(t)-fitness(t-1))<esp
-            break;
-        end
+    pdf_w = pdf .* w';
+    pdf_w_sum = sum(pdf_w, 2);
+    pdf_w_norm = pdf_w ./ repmat(pdf_w_sum, [1,num_components]);
+    loglikelihood(iter) = sum(log(sum(pdf_w_norm, 2)));
+    
+    % M-step
+    for k = 1:num_components
+        w(k) = mean(pdf_w_norm(:,k));
+        mu(k,:) = sum(repmat(pdf_w_norm(:,k), [1,D]) .* data) / sum(pdf_w_norm(:,k));
+        sigma(:,:,k) = (data-repmat(mu(k,:), [N,1]))' * ...
+            (repmat(pdf_w_norm(:,k), [1,D]) .* (data-repmat(mu(k,:), [N,1]))) ...
+            / sum(pdf_w_norm(:,k));
     end
 end
-iter_GMM=t;  % iterations
-NegativeLogLikelihood=fitness(iter_GMM);
-%% clustering
-[~, label_new]=max(responsivity, [], 2);
+
+end
+
+%%
+function [mu, Sigma, w] = gaussian_mixture_model(X, K, max_iter)
+% X: n-by-d matrix of data points
+% K: number of mixture components
+% max_iter: maximum number of iterations
+
+% Initialize the parameters
+[n, d] = size(X);
+mu = X(randperm(n, K), :);  % randomly choose K data points as initial means
+Sigma = repmat(eye(d), [1, 1, K]);  % initialize covariance matrices to identity matrices
+w = ones(1, K) / K;  % initialize mixing coefficients to uniform distribution
+
+% Run the EM algorithm
+for iter = 1:max_iter
+    % E-step
+    p = zeros(n, K);
+    for k = 1:K
+        p(:, k) = w(k) * mvnpdf(X, mu(k, :), Sigma(:, :, k));
+    end
+    p_sum = sum(p, 2);
+    p_norm = bsxfun(@rdivide, p, p_sum);
+    
+    % M-step
+    w = mean(p_norm);
+    for k = 1:K
+        mu(k, :) = sum(bsxfun(@times, p_norm(:, k), X)) / sum(p_norm(:, k));
+        Sigma(:, :, k) = bsxfun(@times, p_norm(:, k), bsxfun(@minus, X, mu(k, :)))' * bsxfun(@minus, X, mu(k, :)) / sum(p_norm(:, k));
+    end
+end
+
+%%
+function [p, mu, sigma, log_likelihood] = gaussian_mix_model(data, num_components, max_iter)
+% Inputs:
+%   data: the data matrix, where each row is a data point
+%   num_components: the number of Gaussian components in the mixture model
+%   max_iter: the maximum number of iterations for the EM algorithm
+% Outputs:
+%   p: the mixture coefficients for the Gaussian components
+%   mu: the mean vectors for the Gaussian components
+%   sigma: the covariance matrices for the Gaussian components
+%   log_likelihood: the log-likelihood of the data under the fitted model
+
+% Initialize the parameters
+[num_samples, num_features] = size(data);
+p = ones(num_components, 1) / num_components;
+mu = randn(num_components, num_features);
+sigma = repmat(eye(num_features), [1, 1, num_components]);
+
+% Run the EM algorithm
+log_likelihood = -inf;
+for iter = 1:max_iter
+    % E-step: calculate the posterior probability of each component given each data point
+    pdf = zeros(num_samples, num_components);
+    for k = 1:num_components
+        pdf(:, k) = mvnpdf(data, mu(k, :), squeeze(sigma(:, :, k)));
+    end
+    likelihood = pdf * p;
+    post_prob = bsxfun(@rdivide, bsxfun(@times, pdf, p'), likelihood');
+    
+    % M-step: update the parameters
+    Nk = sum(post_prob, 1);
+    p = Nk / num_samples;
+    for k = 1:num_components
+        mu(k, :) = sum(bsxfun(@times, data, post_prob(:, k)), 1) / Nk(k);
+        sigma(:, :, k) = bsxfun(@times, bsxfun(@minus, data, mu(k, :))', post_prob(:, k)) * bsxfun(@minus, data, mu(k, :)) / Nk(k);
+    end
+    
+    % Calculate the log-likelihood
+    log_likelihood_new = sum(log(likelihood));
+    if abs(log_likelihood_new - log_likelihood) < 1e-6
+        break;
+    else
+        log_likelihood = log_likelihood_new;
+    end
+end

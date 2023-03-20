@@ -1,4 +1,4 @@
-% apply EM algorithm to scatter plots representing sets of 2-D Gaussians
+% Apply EM algorithm to scatter plots representing sets of 2-D Gaussians
 figure;
 axis([-6,6,-5,5]);
 imax = 20;
@@ -11,15 +11,12 @@ for i=1:imax
     mu3=[-2 1];   sigma3=[1 -0.5; -0.5 1];
     mu4=[-3 0];   sigma4=[0.09 0; 0 0.09];
     rng('default'); % ensures same random seed every time
-    r1=mvnrnd(mu1,sigma1,200);
-    r2=mvnrnd(mu2,sigma2,200);
-    r3=mvnrnd(mu3,sigma3,200);
-    r4=mvnrnd(mu4,sigma4,80);
-    x = [r1; r2; r3; r4];
+    x = [mvnrnd(mu1,sigma1,200); mvnrnd(mu2,sigma2,200); ...
+        mvnrnd(mu3,sigma3,200); mvnrnd(mu4,sigma4,80)];
     options = statset('Display','off','MaxIter',iter(i));
-    gmm = GMM(x,4); % fit 4 2D Gaussians
-    mixture = zeros(0,1); mu = gmm.para_miu; sigma = gmm.para_sigma;
-    L = gmm.NegativeLogLikelihood;
+    gm = fitgmdist(x,4,'Options',options); % fit 4 2D Gaussians
+    mixture = gm.PComponents; mu = gm.mu; sigma = gm.Sigma;
+    L = gm.NegativeLogLikelihood;
     LL(i)=L;
     % present the mixture of Gaussians using meshgrid
     [UU,VV] = meshgrid(-10:0.01:10,-10:0.01:10);

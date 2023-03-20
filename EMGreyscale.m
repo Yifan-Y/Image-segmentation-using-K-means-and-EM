@@ -1,4 +1,12 @@
 % EM algorithm for road picture - using greyscale only
+% Prepare the ground exactly as for the histogram-based K-means algorithm
+
+% obtain initial approximation to the solution 
+% do {
+%   apply M-step to estimate responsibilities
+%   apply E-step to update Gaussian parameters and mixture coefficients 
+% } until log likelihood shows sufficient convergence
+
 frame=imread('road.png');
 grey=rgb2gray(frame);
 imwrite(grey,'roadgrey.png');
@@ -6,24 +14,28 @@ seq=reshape(grey,1,320*240);
 hh=zeros(1,256);
 hh=uint16(hh);
 intens=uint8(0);
+
 for i=1:320*240
     intens=seq(i) + 1;
     hh(intens)=hh(intens)+1;
 end 
+
 x=1:256;
 dhh_org=double(hh);
 Pmin=1;
 while hh(Pmin)==0, Pmin=Pmin+1; end
-found = find(hh==0);
+found = find(hh==0); % avoid devide by 0 errors
 hh(found) = [];
 x(found) = []; % x now indicates non-zero weight in hh
 P=length(hh); % use instead of 256
 dhh=double(hh); % to revert to original intensities, add Pmin-1
-x=x';
+x=x'; % Complex conjugate transpose matrix x
+
 K = 6;
 L=-300; old_L=L; dL=-1.0;
 imax=100; % iterations needed to plot convergence
 LL=zeros(1,imax); DD=zeros(1,imax);
+
 % initialize Gaussian and mixture parameters
 mixture = ones(1,K)/K;
 mu=[30 60 90 120 160 220]; % starting values
@@ -32,7 +44,7 @@ vari_k=ones(1,K)*10;
 sigma_k=sqrt(vari_k);
 
 
-% EM algorithm - main loop
+% EM algorithm - Main Loop
 iter=1;
 while iter<=imax
     % E-step
@@ -73,9 +85,9 @@ end
     sigma_k(k) = sqrt(vari_k(k));
     end 
 % find log likelihood
-for k = 1:K
-    w(:,k) = mixture(k) * normpdf(x(:),mu(k),sigma_k(k));
-end 
+    for k = 1:K
+        w(:,k) = mixture(k) * normpdf(x(:),mu(k),sigma_k(k));
+    end 
     k_sum_w = sum(w,2); % sum over k
     W(:) = dhh(:) .* log(k_sum_w(:));
     L = sum(W); % sum over i=1:P

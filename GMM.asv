@@ -1,0 +1,48 @@
+function [iteration, mu, sigma, NegativeLogLikelihood, fitt]=GMM(X, K)
+%% Gaussian Mixture Model with Expectation Maximization
+%   Initialize 𝜋𝑘, 𝝁𝑘, 𝜮𝑘, 𝑘 = 1, 2, ... , 𝐾, and evaluate the initial value of the log likelihood.
+%   do {
+%       E-Step: Calculate the responsibilities
+%       M-Step: Re-estimate the parameters
+%       Evaluate the log likelihood, check for convergence
+%   } until convergence criterion is satisfied
+
+format long 
+% initializing parameters
+esp=1e-6;  % stopping criterion for iteration
+imax=100;    % maximum number of iteration 
+beta=1e-4;  % a regularization coefficient of covariance matrix
+fitt=zeros(imax,1);
+[X_num, X_dim]=size(X);
+sigma=zeros(X_dim, X_dim, K); % the covariance matrix
+sigma_inv=zeros(X_dim, X_dim, K); % sigma^(-1)
+mu=zeros(K, X_dim); % the mean
+pi=zeros(1, K); % the mixing proportion
+log_N_pdf=zeros(X_num, K);  % log pdf
+for k=1:K
+    X_k=X(k, :); 
+    pi(k)=size(X_k, 1)/X_num;  
+    mu(k, :)=mean(X_k);  
+    sample_cov=cov(X_k)+beta*eye(X_dim);
+    sigma_inv(:, :, k)=inv(sample_cov);  %sigma^(-1)
+end
+
+% Expectation maximization algorithm
+for t=1:imax
+    % E-step
+    for k=1:K
+        % pdf of each cluster 
+        X_mu=X-repmat(mu(k,:), X_num, 1);  % X-mu. X_num*X_dim
+        exp_up=sum((X_mu*sigma_inv(:, :, k)).*X_mu, 2);  % (X-mu)'*sigma^(-1)*(X-mu)
+        log_N_pdf(:,k)=log(pi(k))-0.5*X_dim*log(2*pi)+0.5*log(abs(det(sigma_inv(:, :, k))))-0.5*exp_up; % N*1
+    end
+    T = logsumexp(log_N_pdf,2);
+    responsivity = exp(bsxfun(@minus,log_N_pdf,T)); % posterior probability
+    responsivity(isnan(responsivity)==1) = 1;
+    % M-step
+    
+    % Negative logLikelihood function
+ 
+    % stopping criterion for iteration
+    
+end
