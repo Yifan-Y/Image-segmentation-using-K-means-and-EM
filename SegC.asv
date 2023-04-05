@@ -1,0 +1,21 @@
+% Load the color image
+im = imread('road.png');
+
+% Convert the image to LAB color space
+lab_im = rgb2lab(im);
+
+% Reshape the image into a 2D array
+lab_im_2d = reshape(lab_im, [], 3);
+
+% Fit a Gaussian mixture model with 3 components
+options = statset('Display','off','MaxIter',iter(i));
+gmm = fitgmdist(lab_im_2d, 3);
+
+% Predict the segment labels for each pixel
+labels = cluster(gmm, lab_im_2d);
+
+% Reshape the labels back into the original image dimensions
+segmented_im = reshape(labels, size(im, 1), size(im, 2));
+
+% Display the segmented image
+imshow(segmented_im, [])

@@ -1,11 +1,4 @@
 % EM algorithm for road picture - using greyscale only
-% Prepare the ground exactly as for the histogram-based K-means algorithm
-
-% obtain initial approximation to the solution 
-% do {
-%   apply M-step to estimate responsibilities
-%   apply E-step to update Gaussian parameters and mixture coefficients 
-% } until log likelihood shows sufficient convergence
 
 frame=imread('road.png');
 grey=rgb2gray(frame);
@@ -46,7 +39,7 @@ sigma_k=sqrt(vari_k);
 
 % EM algorithm - Main Loop
 iter=1;
-while iter<=imax
+while iter <= imax
     % E-step
     w = zeros(P,K);
     r = zeros(P,K); rx = zeros(P,K); rdd = zeros(P,K);
@@ -57,7 +50,7 @@ while iter<=imax
 % find responsibilities
 k_sum_w = sum(w,2);
 for i = 1:P
-    r(i,:) = w(i,:) ./ k_sum_w(i);
+    r(i,:) = w(i,:) ./ k_sum_w(i); %r_nk
 end 
 % M-step
 for i = 1:P
