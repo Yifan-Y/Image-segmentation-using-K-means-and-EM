@@ -2,10 +2,11 @@ function [mu, sigma, pi, ll] = GMM(X, K, imax)
 % Input:
 % X is the input data matrix with N rows (samples) and D columns (features)
 % K is the desired number of components (clusters) in the GMM
-% imax is the maximum number of iterations
+% imax is the maximum number of ite
+
+[N, D] = size(X);
 
 % Initialize the GMM parameters
-[N, D] = size(X); % N is the number of data points, D is the number of the dimension of data
 mu = datasample(X, K, 'Replace', true);
 sigma = repmat(eye(D), [1, 1, K]);
 pi = ones(1, K) / K;
@@ -30,7 +31,9 @@ for iter = 1:imax
     resp = resp ./ sum(resp, 2);
     
     % Maximization step: update the parameters of each component using the responsibilities
+    [N, D] = size(X);
     K = size(resp, 2);
+
     nk = sum(resp, 1);
     pi = nk / N;
     mu = resp' * X ./ nk';

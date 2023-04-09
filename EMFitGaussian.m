@@ -45,7 +45,7 @@ for i=1:imax
         scatter(gca,x(:,1),x(:,2),3,'s','filled','b'); hold on
         contour(gca,UU,VV,mix,[0.005 0.01 0.02 0.03 0.04 ...
             0.05 0.07 0.1 0.15 0.25 0.40],'r');
-        axis([-6,6,-5,5]); pbaspect([4,3,1]); axis on
+        axis([-6,6,-5,5]); pbaspect([4,3,1]); axis off
     end % if
 end % for
 saveas(gcf,'EMquadruple.tif');
