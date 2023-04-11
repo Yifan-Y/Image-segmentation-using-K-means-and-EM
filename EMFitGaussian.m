@@ -4,7 +4,7 @@ axis([-6,6,-5,5]);
 imax = 20;
 LL=zeros(imax);
 for i=1:imax
-    iter(i)=i*2;
+    iter(i)=i * 2;
     % generate 2-D dataset
     mu1=[1 -2.5]; sigma1=[2 0; 0 .4];
     mu2=[2 1];    sigma2=[0.5 0; 0 1.5];

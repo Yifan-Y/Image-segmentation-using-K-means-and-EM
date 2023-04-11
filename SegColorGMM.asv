@@ -7,13 +7,29 @@ rgb_im = im2double(im); % rgb_im: 240*320*3 matrix
 % Reshape the image into a 2D array
 rgb_im_2d = reshape(rgb_im, [], 3); % rgm_im_2d: 76800*3 matix
 
-% Fit a Gaussian mixture model with 6 components, iteration set as 100
-K = 6;
-iter = 100;
-[mu, sigma, pi, ll, labels] = GMM(rgb_im_2d, K, iter);
+K = 5;
+% Fit a Gaussian mixture model with 5 components
+[mu, sigma, pi, ll, labels] = GMM(rgb_im_2d, K, 50);
+
+% Predict the segment labels for each pixel
+%labels = cluster(gmm, rgb_im_2d); % labels: 
+
+% Find borderlines between gaussians:
+border = zeros(1, K-1);
+x = 0;
+for k=1:K-1
+    y1=0; y2=-1;
+    while y2<y1
+        y1=pi(k) * mvnpdf(x,mu(k)-1,sigma(k));
+        kk=k+1;
+        y2=pi(kk) * mvnpdf(x,mu(kk)-1,sigma(kk));
+        x=x+1;
+    end
+    border(k)=x-1;
+end
 
 % Reshape the labels back into the original image dimensions with color
-segmented_im = zeros(size(im));
+segmented_im = zeros(1, 320*240);
 
 for i = 1:3
     % Extract the i-th channel (R, G, or B)
